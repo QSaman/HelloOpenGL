@@ -1,5 +1,5 @@
 project(HelloOpenGL)
-cmake_minimum_required(VERSION 2.8)
+cmake_minimum_required(VERSION 3.6)
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 include(ucm)
@@ -7,6 +7,11 @@ include(ucm)
 ucm_add_dirs(src TO SRC_LIST)
 
 add_executable(${PROJECT_NAME} ${SRC_LIST})
+
+if(MSVC)
+	# The following line needs at least version 3.6
+	set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT ${PROJECT_NAME})
+endif()
 
 include_directories(${PROJECT_SOURCE_DIR}/include)
 
@@ -55,8 +60,9 @@ else (${USE_System_GLFW})
 	add_dependencies(glfw external_glfw)
 	add_dependencies(${PROJECT_NAME} glfw)
 	include_directories(${GLFW_INSTALL_LOCATION}/include)
-	find_library(glfw_lib glfw3 ${GLFW_INSTALL_LOCATION}/lib)
-	set(externalLibs ${externalLibs} ${glfw_lib})
+	set(glfw_lib_name ${CMAKE_STATIC_LIBRARY_PREFIX}glfw3${CMAKE_STATIC_LIBRARY_SUFFIX})
+	set_property(TARGET glfw PROPERTY  IMPORTED_LOCATION "${GLFW_INSTALL_LOCATION}/lib/${glfw_lib_name}")
+	set(externalLibs ${externalLibs} glfw)
 endif (${USE_System_GLFW})
 
 if (NOT ${USE_System_GLM})
