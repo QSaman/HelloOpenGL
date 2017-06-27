@@ -1,6 +1,9 @@
 project(HelloOpenGL)
 cmake_minimum_required(VERSION 3.6)
 
+# Allow subfolders in solution file
+set_property(GLOBAL PROPERTY USE_FOLDERS ON)
+
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 include(ucm)
 
@@ -11,6 +14,7 @@ add_executable(${PROJECT_NAME} ${SRC_LIST})
 
 set(GLAD_LIB_NAME glad)
 add_library(${GLAD_LIB_NAME} ${LIB_SRC_LIST})
+set_target_properties(${GLAD_LIB_NAME} PROPERTIES FOLDER "lib")
 include_directories(${PROJECT_SOURCE_DIR}/include)
 set(externalLibs ${externalLibs} ${GLAD_LIB_NAME})
 
