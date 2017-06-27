@@ -5,15 +5,19 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 include(ucm)
 
 ucm_add_dirs(src TO SRC_LIST)
+ucm_add_dirs(lib TO LIB_SRC_LIST)
 
 add_executable(${PROJECT_NAME} ${SRC_LIST})
+
+set(GLAD_LIB_NAME glad)
+add_library(${GLAD_LIB_NAME} ${LIB_SRC_LIST})
+include_directories(${PROJECT_SOURCE_DIR}/include)
+set(externalLibs ${externalLibs} ${GLAD_LIB_NAME})
 
 if(MSVC)
 	# The following line needs at least version 3.6
 	set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT ${PROJECT_NAME})
 endif()
-
-include_directories(${PROJECT_SOURCE_DIR}/include)
 
 ################################################################################
 if (${CMAKE_SYSTEM_NAME} STREQUAL Linux)
