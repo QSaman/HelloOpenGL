@@ -1,84 +1,81 @@
 project(HelloOpenGL)
-cmake_minimum_required(VERSION 3.6)
-
-# Allow subfolders in solution file
-set_property(GLOBAL PROPERTY USE_FOLDERS ON)
+set(CMAKE_MINIMUM_VERSION 3.1)
+cmake_minimum_required(VERSION ${CMAKE_MINIMUM_VERSION})
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
-include(ucm)
 
-ucm_add_dirs(src TO SRC_LIST)
-ucm_add_dirs(lib TO LIB_SRC_LIST)
+include(DefaultOptions)
 
-add_executable(${PROJECT_NAME} ${SRC_LIST})
-
-set(GLAD_LIB_NAME glad)
-add_library(${GLAD_LIB_NAME} ${LIB_SRC_LIST})
-set_target_properties(${GLAD_LIB_NAME} PROPERTIES FOLDER "lib")
 include_directories(${PROJECT_SOURCE_DIR}/include)
-set(externalLibs ${externalLibs} ${GLAD_LIB_NAME})
 
-if(MSVC)
+################################################################################
+
+if (UNIX AND NOT APPLE)
+    set(DEFAULT_DOWNLOAD OFF)
+    set(DEFAULT_OPENGL_LOADER "glbinding")
+else ()
+    set(DEFAULT_DOWNLOAD ON)
+    set(DEFAULT_OPENGL_LOADER "Glad")
+endif ()
+
+OPTION(DOWNLOAD_GLFW "Download GLFW. Recommended for Windows and Apple. In Linux use your package manager to install it." ${DEFAULT_DOWNLOAD})
+OPTION(DOWNLOAD_GLM "Download GLM. Recommended for Windows and Apple. In Linux use your package manager to install it." ${DEFAULT_DOWNLOAD})
+set(OPENGL_LOADER "${DEFAULT_OPENGL_LOADER}" CACHE STRING "OpenGL loading library. It is recommended to use glbinding for Linux (it will be downloaded).")
+set_property(CACHE OPENGL_LOADER PROPERTY STRINGS glbinding Glad)
+
+################################################################################
+
+if (${DOWNLOAD_GLFW})
+    include(DownloadGLFW)
+else ()
+    include(glfw)
+endif ()
+include_directories(${GLFW_INCLUDE_DIR})
+set(externalLibs ${externalLibs} ${GLFW_LIBRARIES})
+
+if (${DOWNLOAD_GLM})
+    include(DownloadGLM)
+else ()
+    include(glm)    
+endif ()
+include_directories(${GLM_INCLUDE_DIR})
+
+if (${OPENGL_LOADER} STREQUAL "glbinding")
+    add_definitions(-DUSE_GLBINDING)
+    include(DownloadGlbinding)
+    include_directories(${GLBINDING_INCLUDE_DIR})
+    if (UNIX AND NOT APPLE)
+        find_library(GL_LIB GL)
+        set(externalLibs ${externalLibs} ${GL_LIB})
+    endif ()
+    set(externalLibs ${externalLibs} ${GLBINDING_LIBRARIES})
+elseif (${OPENGL_LOADER} STREQUAL "Glad")
+    add_definitions(-DUSE_GLAD)
+	add_subdirectory(glad)
+    include_directories(${GLAD_INCLUDE_DIR})
+    set(externalLibs ${externalLibs} ${GLAD_LIBRARIES})
+else ()
+    message(FATAL_ERROR "Unknown OpenGL loading library.") 
+endif ()
+
+################################################################################
+	 
+set(BIN_DIR "bin/$<CONFIG>/${PROJECT_NAME}")
+include(ucm)
+set(SRC_LIST)
+ucm_add_dirs(src TO SRC_LIST)
+add_executable(${PROJECT_NAME} ${SRC_LIST})
+if(MSVC AND (CMAKE_VERSION VERSION_GREATER 3.6 OR CMAKE_VERSION VERSION_EQUAL 3.6))
 	# The following line needs at least version 3.6
 	set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT ${PROJECT_NAME})
 endif()
-
-################################################################################
-if (${CMAKE_SYSTEM_NAME} STREQUAL Linux)
-    OPTION(USE_System_GLFW "Use GLFW externally (recommended for platforms which support pkgconfig like Linux" ON)
-    OPTION(USE_System_GLM "Use GLM externally (recommended for platforms like Linux" ON)
-	find_library(dl_lib dl)
-	set(externalLibs ${externalLibs} ${dl_lib})
-else (${CMAKE_SYSTEM_NAME} STREQUAL Linux)
-    OPTION(USE_System_GLFW "Use GLFW externally (recommended for platforms which support pkgconfig like Linux" OFF)
-    OPTION(USE_System_GLM "Use GLM externally (recommended for platforms like Linux" OFF)
-endif (${CMAKE_SYSTEM_NAME} STREQUAL Linux)    
-################################################################################
-
-# Adding header files recursively. aux_source_directory doesn't do that very well
-#file(GLOB_RECURSE headerFilesList "*.h" "*.hpp")
-#add_custom_target(headerFiles SOURCES ${headerFilesList})
-
-################################################################################
-# Enabling C++11. Add these two lines after add_executable. Notice you must 
-# Enable C++11 for every target in all your CMake scripts.
-set_property(TARGET ${PROJECT_NAME} PROPERTY CXX_STANDARD 11)
-set_property(TARGET ${PROJECT_NAME} PROPERTY CXX_STANDARD_REQUIRED ON)
-
-################################################################################
-
-#find_package(OpenGL REQUIRED)
-
-if (${USE_System_GLFW})
-    find_package(PkgConfig REQUIRED)
-    pkg_search_module(GLFW REQUIRED glfw3)
-    set(externalLibs ${externalLibs} ${GLFW_LIBRARIES})
-else (${USE_System_GLFW})
-	set(GLFW_INSTALL_LOCATION "${PROJECT_BINARY_DIR}/external/glfw")
-	include(ExternalProject)
-	ExternalProject_Add(external_glfw
-		URL https://github.com/glfw/glfw/releases/download/3.2.1/glfw-3.2.1.zip
-		CMAKE_ARGS "${CMAKE_ARGS};"
-			"-DCMAKE_INSTALL_PREFIX=${GLFW_INSTALL_LOCATION};"
-			"-DGLFW_BUILD_DOCS=OFF;"
-			"-DGLFW_BUILD_TESTS=OFF;"
-			"-DGLFW_BUILD_EXAMPLES=OFF;"
-		)
-	add_library(glfw STATIC IMPORTED)
-	add_dependencies(glfw external_glfw)
-	add_dependencies(${PROJECT_NAME} glfw)
-	include_directories(${GLFW_INSTALL_LOCATION}/include)
-	set(glfw_lib_name ${CMAKE_STATIC_LIBRARY_PREFIX}glfw3${CMAKE_STATIC_LIBRARY_SUFFIX})
-	set_property(TARGET glfw PROPERTY  IMPORTED_LOCATION "${GLFW_INSTALL_LOCATION}/lib/${glfw_lib_name}")
-	set(externalLibs ${externalLibs} glfw)
-endif (${USE_System_GLFW})
-
-if (NOT ${USE_System_GLM})
-#    include_directories(${PROJECT_SOURCE_DIR}/external/glm)
-endif (NOT ${USE_System_GLM})
-
+if (DEFAULT_TARGET_OPTIONS)
+	set_target_properties(${PROJECT_NAME} PROPERTIES
+			${DEFAULT_TARGET_OPTIONS})
+endif ()
 target_link_libraries(${PROJECT_NAME} ${externalLibs})
-
-file(COPY ${PROJECT_SOURCE_DIR}/shaders/ DESTINATION ${PROJECT_BINARY_DIR}/shaders
-     FILES_MATCHING PATTERN "*")
-
+add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+	COMMAND "${CMAKE_COMMAND}" -E copy_directory "${PROJECT_SOURCE_DIR}/shaders" "${PROJECT_BINARY_DIR}/shaders")
+	
+install(TARGETS ${PROJECT_NAME} DESTINATION "${BIN_DIR}")
+install(DIRECTORY "${PROJECT_SOURCE_DIR}/shaders" DESTINATION ${BIN_DIR})
