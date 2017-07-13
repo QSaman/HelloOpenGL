@@ -60,7 +60,7 @@ endif ()
 
 ################################################################################
 	 
-set(BIN_DIR "bin/$<CONFIG>/${PROJECT_NAME}")
+set(BIN_DIR "bin/$<CONFIG>")
 include(ucm)
 set(SRC_LIST)
 ucm_add_dirs(src TO SRC_LIST)
